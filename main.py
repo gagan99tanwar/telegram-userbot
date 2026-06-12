@@ -1,4 +1,5 @@
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 import requests
 import os
 import sqlite3
@@ -11,10 +12,10 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 TARGET_GROUP = "serien_gays"
 
-# 🚀 TELETHON CLIENT
-client = TelegramClient(string_session, api_id, api_hash)
+# 🚀 TELETHON CLIENT (FIXED SESSION)
+client = TelegramClient(StringSession(string_session), api_id, api_hash)
 
-# 🗄️ SQLITE (RAILWAY SAFE FIX)
+# 🗄️ SQLITE (RAILWAY SAFE)
 conn = sqlite3.connect("/tmp/bot.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -56,9 +57,8 @@ async def handler(event):
 
         chat = await event.get_chat()
         username = getattr(chat, "username", None)
-        title = (getattr(chat, "title", "") or "").lower()
 
-        # group filter (SAFE)
+        # ONLY TARGET GROUP
         if username != TARGET_GROUP:
             return
 
@@ -68,14 +68,14 @@ async def handler(event):
 
         print("💬 Message:", msg)
 
-        # save to db
+        # SAVE TO DB
         cursor.execute(
             "INSERT INTO chats (user, message) VALUES (?, ?)",
             (str(event.sender_id), msg)
         )
         conn.commit()
 
-        # reply
+        # GEMINI REPLY
         reply = gemini(msg)
         print("📤 Reply:", reply)
 
