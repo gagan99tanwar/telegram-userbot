@@ -1,20 +1,25 @@
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 import random
 import json
 import os
+import asyncio
 
-# ================= TELEGRAM CREDENTIALS =================
-API_ID = 123456
-API_HASH = "your_api_hash"
-STRING_SESSION = "your_string_session"
+# ================= TELEGRAM =================
+API_ID = int(os.getenv("API_ID", "123456"))
+API_HASH = os.getenv("API_HASH", "your_api_hash")
+STRING_SESSION = os.getenv("STRING_SESSION", "your_string_session")
 
-client = TelegramClient("session", API_ID, API_HASH)
+# ✅ NO OTP MODE (ONLY STRING SESSION)
+client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
 
 # ================= GROUP =================
 GROUP_USERNAME = "serien_gays"
 
-# ================= MEMORY DB =================
+# ================= DB =================
 DB_FILE = "tg_ai_users.json"
+
+db_lock = asyncio.Lock()
 
 def load_db():
     if os.path.exists(DB_FILE):
@@ -28,8 +33,7 @@ def save_db(db):
 
 db = load_db()
 
-
-# ================= USER SYSTEM =================
+# ================= USER =================
 def get_user(uid):
     if uid not in db:
         db[uid] = {
@@ -44,20 +48,15 @@ def get_user(uid):
         }
     return db[uid]
 
-
 def save_user(uid, user):
     db[uid] = user
     save_db(db)
 
-
 # ================= MEMORY =================
 def remember(user, msg):
-    user["memory"].append(msg)
-    if len(user["memory"]) > 20:
-        user["memory"].pop(0)
+    user["memory"] = (user["memory"] + [msg])[-20:]
 
-
-# ================= EMOTION ENGINE =================
+# ================= EMOTION =================
 def update_emotion(user, msg):
     msg = msg.lower()
 
@@ -79,7 +78,6 @@ def update_emotion(user, msg):
     user["trust"] = max(0, min(user["trust"], 10))
     user["affection"] = max(0, min(user["affection"], 10))
 
-    # mood system
     if user["anger"] >= 4:
         user["mood"] = "savage"
     elif user["trust"] <= 2:
@@ -89,8 +87,7 @@ def update_emotion(user, msg):
     else:
         user["mood"] = "neutral"
 
-
-# ================= INTENT DETECTION =================
+# ================= INTENT =================
 def detect_intent(msg):
     msg = msg.lower()
 
@@ -107,8 +104,7 @@ def detect_intent(msg):
 
     return "unknown"
 
-
-# ================= AI RESPONSE BANK =================
+# ================= RESPONSES =================
 RESPONSES = {
     "greet": ["Hey 👋", "Hello 😄", "Kaise ho 😌", "Namaste 🙏"],
     "love": ["Pyaar complex hai ❤️‍🔥", "Feelings strong hoti hain 🫂"],
@@ -124,25 +120,19 @@ FALLBACK = {
     "cold": ["Hmm 😐", "Ok."]
 }
 
+# ================= BRAIN =================
+def brain(user, intent):
+    pool = RESPONSES.get(intent, FALLBACK[user["mood"]])
+    reply = random.choice(pool)
 
-# ================= SMART BRAIN =================
-def brain(user, msg, intent):
-    mood = user["mood"]
-
-    candidates = RESPONSES.get(intent, FALLBACK[mood])
-
-    best = random.choice(candidates)
-
-    # small AI behavior tweak
     if user["trust"] > 7:
-        best += " 😌"
+        reply += " 😌"
     if user["anger"] > 3:
-        best += " 😤"
+        reply += " 😤"
 
-    return best
+    return reply
 
-
-# ================= MAIN AI FUNCTION =================
+# ================= CORE =================
 def get_reply(user_id, message):
     user = get_user(user_id)
     msg = message.lower()
@@ -152,20 +142,17 @@ def get_reply(user_id, message):
 
     intent = detect_intent(msg)
 
-    # name system
     if "my name is" in msg:
         name = msg.split("my name is")[-1].strip()
         user["name"] = name
         save_user(user_id, user)
         return f"Nice to meet you {name} 😄"
 
-    # personalized greet
     if user["name"] and intent == "greet":
         reply = f"Hey {user['name']} 😌"
     else:
-        reply = brain(user, msg, intent)
+        reply = brain(user, intent)
 
-    # xp system
     user["xp"] += 1
     if user["xp"] % 10 == 0:
         user["level"] += 1
@@ -173,27 +160,24 @@ def get_reply(user_id, message):
     save_user(user_id, user)
     return reply
 
-
-# ================= TELEGRAM HANDLER =================
+# ================= HANDLER =================
 @client.on(events.NewMessage(chats=GROUP_USERNAME))
 async def handler(event):
-
     if not event.raw_text:
         return
 
-    # 50% reply rule (human-like behavior)
-    if random.random() > 0.5:
+    # reply only when mentioned (stable behavior)
+    if event.is_group and not event.mentioned:
         return
 
     user_id = str(event.sender_id)
     text = event.raw_text
 
     reply = get_reply(user_id, text)
-
     await event.reply(reply)
 
-
 # ================= START =================
-print("🤖 AI Userbot running in @serien_gays ...")
+print("🤖 Bot running with StringSession (NO OTP MODE)")
+
 client.start()
 client.run_until_disconnected()
