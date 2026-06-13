@@ -3,7 +3,9 @@ from telethon.sessions import StringSession
 import requests
 import os
 
-# ENV
+print("VERSION TEST 999")
+
+# ENV VARIABLES
 api_id = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
 string_session = os.getenv("STRING_SESSION")
@@ -11,7 +13,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 TARGET_GROUP = "serien_gays"
 
-# CLIENT
+# TELEGRAM CLIENT
 client = TelegramClient(
     StringSession(string_session),
     api_id,
@@ -19,16 +21,21 @@ client = TelegramClient(
 )
 
 def gemini(text):
-    print("USING GEMINI 2.0 FLASH")
+    print("USING GEMINI")
+
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 
         payload = {
-            "contents": [{
-                "parts": [{
-                    "text": f"Reply in natural Hinglish with attitude 😎\nUser: {text}"
-                }]
-            }]
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": f"Reply naturally in Hinglish. User message: {text}"
+                        }
+                    ]
+                }
+            ]
         }
 
         r = requests.post(url, json=payload, timeout=20)
@@ -44,7 +51,7 @@ def gemini(text):
         return data["candidates"][0]["content"]["parts"][0]["text"]
 
     except Exception as e:
-        print("❌ GEMINI ERROR:", repr(e))
+        print("GEMINI ERROR:", repr(e))
         return "😅 error aa gaya"
 
 @client.on(events.NewMessage)
@@ -53,12 +60,10 @@ async def handler(event):
         if not event.is_group:
             return
 
-        # apne hi messages ignore karo
         if event.out:
             return
 
         chat = await event.get_chat()
-
         username = getattr(chat, "username", None)
 
         if username != TARGET_GROUP:
@@ -66,19 +71,22 @@ async def handler(event):
 
         msg = event.raw_text
 
-        print("🔥 MESSAGE EVENT TRIGGERED")
-        print("💬 MESSAGE:", msg)
+        print("MESSAGE EVENT TRIGGERED")
+        print("MESSAGE:", msg)
 
         reply = gemini(msg)
 
-        print("📤 REPLY:", reply)
+        print("REPLY:", reply)
 
         await event.reply(reply)
 
     except Exception as e:
-        print("❌ HANDLER ERROR:", repr(e))
+        print("HANDLER ERROR:", repr(e))
 
-print("🔥 BOT STARTED")
+print("BOT STARTED")
+
 client.start()
-print("🔥 BOT RUNNING...")
+
+print("BOT RUNNING...")
+
 client.run_until_disconnected()
