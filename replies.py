@@ -239,6 +239,7 @@ FALLBACK_REPLIES = [
 "Matlab kuch bhi",
 "Heavy baat kar di",
 "Ab maja aayega"
+]
 def get_reply(message):
     msg = message.lower()
 
@@ -247,4 +248,3 @@ def get_reply(message):
             return random.choice(replies)
 
     return random.choice(FALLBACK_REPLIES)
-    ]
