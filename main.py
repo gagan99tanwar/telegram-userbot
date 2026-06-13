@@ -19,6 +19,7 @@ client = TelegramClient(
 )
 
 def gemini(text):
+    print("USING GEMINI 2.0 FLASH")
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 
