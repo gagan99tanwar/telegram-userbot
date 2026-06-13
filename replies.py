@@ -239,4 +239,12 @@ FALLBACK_REPLIES = [
 "Matlab kuch bhi",
 "Heavy baat kar di",
 "Ab maja aayega"
-]
+def get_reply(message):
+    msg = message.lower()
+
+    for keyword, replies in REPLY_MAP.items():
+        if keyword in msg:
+            return random.choice(replies)
+
+    return random.choice(FALLBACK_REPLIES)
+    ]
