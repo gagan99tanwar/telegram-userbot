@@ -56,12 +56,13 @@ async def load_stickers():
 
         for s in sticker_sets.sets[:5]:
             stickers = await client(
-                GetStickerSetRequest(
-                    stickerset=InputStickerSetID(
-                        id=s.id,
-                        access_hash=s.access_hash
-                    )
-                )
+    GetStickerSetRequest(
+        stickerset=InputStickerSetID(
+            id=s.id,
+            access_hash=s.access_hash
+        ),
+        hash=0
+    )
             )
 
             STICKERS.extend(stickers.documents[:10])
