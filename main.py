@@ -7,9 +7,11 @@ import asyncio
 
 print("🚀 ULTRA PRO BOT STARTING...")
 
-# =========================
-# ENV VARIABLES
-# =========================
+=========================
+
+ENV VARIABLES
+
+=========================
 
 api_id = int(os.getenv("API_ID", "0"))
 api_hash = os.getenv("API_HASH")
@@ -18,179 +20,211 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 TARGET_GROUP = "serien_gays"
 
-# Cooldown (seconds)
-COOLDOWN = 30
+Cooldown (seconds)
+
+COOLDOWN = 15
 last_reply_time = 0
 
-# =========================
-# CHECK VARIABLES
-# =========================
+=========================
+
+CHECK VARIABLES
+
+=========================
 
 if not GEMINI_API_KEY:
-    print("❌ GEMINI_API_KEY NOT FOUND")
+print("❌ GEMINI_API_KEY NOT FOUND")
 else:
-    print("✅ GEMINI_API_KEY LOADED")
+print("✅ GEMINI_API_KEY LOADED")
 
-# =========================
-# TELEGRAM CLIENT
-# =========================
+=========================
+
+TELEGRAM CLIENT
+
+=========================
 
 client = TelegramClient(
-    StringSession(string_session),
-    api_id,
-    api_hash
+StringSession(string_session),
+api_id,
+api_hash
 )
 
-# =========================
-# GEMINI FUNCTION
-# =========================
+=========================
+
+GEMINI FUNCTION
+
+=========================
 
 def gemini(text):
 
-    models = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash"
-    ]
+models = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash"
+]
 
-    prompt = f"""
-You are chatting casually in a Telegram group.
+prompt = f"""
+
+You are Suzume, a friendly Telegram group member.
 
 Rules:
-- Reply in natural Hinglish.
-- Sound friendly and relaxed.
-- Keep most replies short.
-- Match the emotion of the user's message.
-- If someone is happy, respond happily.
-- If someone is sad, respond supportively.
-- If someone is excited, show excitement too.
-- If someone is joking, joke back naturally.
-- If someone is angry, stay calm and friendly.
+
+- Reply in casual Hinglish.
+- Maximum 15 words.
+- Maximum 1 sentence.
+- Match the emotion of the message.
+- Be friendly and playful.
 - Use emojis occasionally.
+- Don't sound formal.
+- Don't write long paragraphs.
 - Don't use bullet points.
-- Don't sound like customer support.
-- Don't over-explain.
-- Talk like a normal group member.
+- If someone asks a technical question, reply casually and briefly.
+- If you don't know something, say you don't know.
+- Don't explain coding, APIs, servers or technical topics in detail.
+- Keep replies natural and short.
 
 User message:
 {text}
 """
 
-    for model in models:
-        try:
-            print(f"🤖 Trying model: {model}")
+for model in models:
+    try:
+        print(f"🤖 Trying model: {model}")
 
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
 
-            payload = {
-                "contents": [
-                    {
-                        "parts": [
-                            {
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ]
-            }
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt
+                        }
+                    ]
+                }
+            ]
+        }
 
-            r = requests.post(
-                url,
-                json=payload,
-                timeout=20
-            )
+        r = requests.post(
+            url,
+            json=payload,
+            timeout=20
+        )
 
-            print("STATUS:", r.status_code)
+        print("STATUS:", r.status_code)
 
-            if r.status_code != 200:
-                print("ERROR:", r.text)
-                continue
-
-            data = r.json()
-
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-
-        except Exception as e:
-            print("MODEL ERROR:", repr(e))
+        if r.status_code != 200:
+            print("ERROR:", r.text)
             continue
 
-    return "😅"
+        data = r.json()
 
-# =========================
-# MESSAGE HANDLER
-# =========================
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+
+    except Exception as e:
+        print("MODEL ERROR:", repr(e))
+        continue
+
+return "😅"
+
+=========================
+
+MESSAGE HANDLER
+
+=========================
 
 @client.on(events.NewMessage)
 async def handler(event):
-    global last_reply_time
+global last_reply_time
 
-    try:
+try:
 
-        if not event.is_group:
+    if not event.is_group:
+        return
+
+    if event.out:
+        return
+
+    # Ignore Telegram bots
+    sender = await event.get_sender()
+
+    if getattr(sender, "bot", False):
+        return
+
+    chat = await event.get_chat()
+    username = getattr(chat, "username", None)
+
+    if username != TARGET_GROUP:
+        return
+
+    msg = event.raw_text.strip()
+
+    if len(msg) < 2:
+        return
+
+    # Ignore AI related discussions
+    ai_keywords = [
+        "are you ai",
+        "tum ai ho",
+        "are you a bot",
+        "tum bot ho",
+        "chatgpt",
+        "gemini"
+    ]
+
+    if any(word in msg.lower() for word in ai_keywords):
+        return
+
+    must_reply = False
+
+    # Always reply when tagged
+    if event.mentioned:
+        must_reply = True
+
+    # Always reply if someone replies to bot
+    if event.is_reply:
+        try:
+            replied = await event.get_reply_message()
+
+            if replied and replied.out:
+                must_reply = True
+        except:
+            pass
+
+    now = asyncio.get_event_loop().time()
+
+    # Cooldown for random replies
+    if not must_reply:
+
+        if now - last_reply_time < COOLDOWN:
             return
 
-        if event.out:
+        # 50% chance reply
+        if random.randint(1, 100) > 50:
             return
 
-        chat = await event.get_chat()
-        username = getattr(chat, "username", None)
+    print("\\n📩 MESSAGE:", msg)
 
-        if username != TARGET_GROUP:
-            return
+    # Human-like delay
+    await asyncio.sleep(random.randint(4, 10))
 
-        msg = event.raw_text.strip()
+    reply = gemini(msg)
 
-        if len(msg) < 2:
-            return
+    if not reply:
+        reply = "😄"
 
-        must_reply = False
+    print("💬 REPLY:", reply)
 
-        # Always reply when tagged
-        if event.mentioned:
-            must_reply = True
+    await event.reply(reply)
 
-        # Always reply if someone replies to bot
-        if event.is_reply:
-            try:
-                replied = await event.get_reply_message()
+    last_reply_time = now
 
-                if replied and replied.out:
-                    must_reply = True
-            except:
-                pass
+except Exception as e:
+    print("❌ HANDLER ERROR:", repr(e))
 
-        now = asyncio.get_event_loop().time()
+=========================
 
-        # Cooldown only for random replies
-        if not must_reply:
-            if now - last_reply_time < COOLDOWN:
-                return
+START BOT
 
-            # 50% chance reply
-            if random.randint(1, 100) > 50:
-                return
-
-        print("\n📩 MESSAGE:", msg)
-
-        # Human delay
-        await asyncio.sleep(random.randint(4, 12))
-
-        reply = gemini(msg)
-
-        if not reply:
-            reply = "😄"
-
-        print("💬 REPLY:", reply)
-
-        await event.reply(reply)
-
-        last_reply_time = now
-
-    except Exception as e:
-        print("❌ HANDLER ERROR:", repr(e))
-
-# =========================
-# START BOT
-# =========================
+=========================
 
 print("✅ BOT INITIALIZING...")
 
