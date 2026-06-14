@@ -7,11 +7,9 @@ import asyncio
 
 print("🚀 ULTRA PRO BOT STARTING...")
 
-=========================
-
-ENV VARIABLES
-
-=========================
+# =========================
+# ENV VARIABLES
+# =========================
 
 api_id = int(os.getenv("API_ID", "0"))
 api_hash = os.getenv("API_HASH")
@@ -20,53 +18,47 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 TARGET_GROUP = "serien_gays"
 
-Cooldown (seconds)
-
+# Cooldown (seconds)
 COOLDOWN = 15
 last_reply_time = 0
 
-=========================
-
-CHECK VARIABLES
-
-=========================
+# =========================
+# CHECK VARIABLES
+# =========================
 
 if not GEMINI_API_KEY:
-print("❌ GEMINI_API_KEY NOT FOUND")
+    print("❌ GEMINI_API_KEY NOT FOUND")
 else:
-print("✅ GEMINI_API_KEY LOADED")
+    print("✅ GEMINI_API_KEY LOADED")
 
-=========================
+if not api_id or not api_hash or not string_session:
+    print("❌ Missing Telegram credentials")
+    exit()
 
-TELEGRAM CLIENT
-
-=========================
+# =========================
+# TELEGRAM CLIENT
+# =========================
 
 client = TelegramClient(
-StringSession(string_session),
-api_id,
-api_hash
+    StringSession(string_session),
+    api_id,
+    api_hash
 )
 
-=========================
-
-GEMINI FUNCTION
-
-=========================
+# =========================
+# GEMINI FUNCTION
+# =========================
 
 def gemini(text):
+    models = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash"
+    ]
 
-models = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash"
-]
-
-prompt = f"""
-
+    prompt = f"""
 You are Suzume, a friendly Telegram group member.
 
 Rules:
-
 - Reply in casual Hinglish.
 - Maximum 15 words.
 - Maximum 1 sentence.
@@ -85,146 +77,134 @@ User message:
 {text}
 """
 
-for model in models:
-    try:
-        print(f"🤖 Trying model: {model}")
+    for model in models:
+        try:
+            print(f"🤖 Trying model: {model}")
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
 
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": prompt
-                        }
-                    ]
-                }
-            ]
-        }
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            }
 
-        r = requests.post(
-            url,
-            json=payload,
-            timeout=20
-        )
+            r = requests.post(
+                url,
+                json=payload,
+                timeout=20
+            )
 
-        print("STATUS:", r.status_code)
+            print("STATUS:", r.status_code)
 
-        if r.status_code != 200:
-            print("ERROR:", r.text)
+            if r.status_code != 200:
+                print("ERROR:", r.text)
+                continue
+
+            data = r.json()
+
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+
+        except Exception as e:
+            print("MODEL ERROR:", repr(e))
             continue
 
-        data = r.json()
+    return "😅"
 
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-
-    except Exception as e:
-        print("MODEL ERROR:", repr(e))
-        continue
-
-return "😅"
-
-=========================
-
-MESSAGE HANDLER
-
-=========================
+# =========================
+# MESSAGE HANDLER
+# =========================
 
 @client.on(events.NewMessage)
 async def handler(event):
-global last_reply_time
+    global last_reply_time
 
-try:
-
-    if not event.is_group:
-        return
-
-    if event.out:
-        return
-
-    # Ignore Telegram bots
-    sender = await event.get_sender()
-
-    if getattr(sender, "bot", False):
-        return
-
-    chat = await event.get_chat()
-    username = getattr(chat, "username", None)
-
-    if username != TARGET_GROUP:
-        return
-
-    msg = event.raw_text.strip()
-
-    if len(msg) < 2:
-        return
-
-    # Ignore AI related discussions
-    ai_keywords = [
-        "are you ai",
-        "tum ai ho",
-        "are you a bot",
-        "tum bot ho",
-        "chatgpt",
-        "gemini"
-    ]
-
-    if any(word in msg.lower() for word in ai_keywords):
-        return
-
-    must_reply = False
-
-    # Always reply when tagged
-    if event.mentioned:
-        must_reply = True
-
-    # Always reply if someone replies to bot
-    if event.is_reply:
-        try:
-            replied = await event.get_reply_message()
-
-            if replied and replied.out:
-                must_reply = True
-        except:
-            pass
-
-    now = asyncio.get_event_loop().time()
-
-    # Cooldown for random replies
-    if not must_reply:
-
-        if now - last_reply_time < COOLDOWN:
+    try:
+        if not event.is_group:
             return
 
-        # 50% chance reply
-        if random.randint(1, 100) > 50:
+        if event.out:
             return
 
-    print("\\n📩 MESSAGE:", msg)
+        sender = await event.get_sender()
 
-    # Human-like delay
-    await asyncio.sleep(random.randint(4, 10))
+        if getattr(sender, "bot", False):
+            return
 
-    reply = gemini(msg)
+        chat = await event.get_chat()
+        username = getattr(chat, "username", None)
 
-    if not reply:
-        reply = "😄"
+        if username != TARGET_GROUP:
+            return
 
-    print("💬 REPLY:", reply)
+        msg = event.raw_text.strip()
 
-    await event.reply(reply)
+        if len(msg) < 2:
+            return
 
-    last_reply_time = now
+        ai_keywords = [
+            "are you ai",
+            "tum ai ho",
+            "are you a bot",
+            "tum bot ho",
+            "chatgpt",
+            "gemini"
+        ]
 
-except Exception as e:
-    print("❌ HANDLER ERROR:", repr(e))
+        if any(word in msg.lower() for word in ai_keywords):
+            return
 
-=========================
+        must_reply = False
 
-START BOT
+        if event.mentioned:
+            must_reply = True
 
-=========================
+        if event.is_reply:
+            try:
+                replied = await event.get_reply_message()
+
+                if replied and replied.out:
+                    must_reply = True
+            except Exception:
+                pass
+
+        now = asyncio.get_event_loop().time()
+
+        if not must_reply:
+
+            if now - last_reply_time < COOLDOWN:
+                return
+
+            if random.randint(1, 100) > 50:
+                return
+
+        print("\n📩 MESSAGE:", msg)
+
+        await asyncio.sleep(random.randint(4, 10))
+
+        reply = gemini(msg)
+
+        if not reply:
+            reply = "😄"
+
+        print("💬 REPLY:", reply)
+
+        await event.reply(reply)
+
+        last_reply_time = now
+
+    except Exception as e:
+        print("❌ HANDLER ERROR:", repr(e))
+
+# =========================
+# START BOT
+# =========================
 
 print("✅ BOT INITIALIZING...")
 
