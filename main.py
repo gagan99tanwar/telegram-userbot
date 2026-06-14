@@ -1,183 +1,105 @@
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
-import random
-import json
+import requests
 import os
+import random
 import asyncio
 
-# ================= TELEGRAM =================
-API_ID = int(os.getenv("API_ID", "123456"))
-API_HASH = os.getenv("API_HASH", "your_api_hash")
-STRING_SESSION = os.getenv("STRING_SESSION", "your_string_session")
+print("VERSION TEST 999")
 
-# ✅ NO OTP MODE (ONLY STRING SESSION)
-client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
+# ENV VARIABLES
+api_id = int(os.getenv("API_ID"))
+api_hash = os.getenv("API_HASH")
+string_session = os.getenv("STRING_SESSION")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# ================= GROUP =================
-GROUP_USERNAME = "serien_gays"
+TARGET_GROUP = "serien_gays"
 
-# ================= DB =================
-DB_FILE = "tg_ai_users.json"
+# TELEGRAM CLIENT
+client = TelegramClient(
+    StringSession(string_session),
+    api_id,
+    api_hash
+)
 
-db_lock = asyncio.Lock()
+# GEMINI FUNCTION (2.5 FLASH)
+def gemini(text):
+    print("USING GEMINI 2.5 FLASH")
 
-def load_db():
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    return {}
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
 
-def save_db(db):
-    with open(DB_FILE, "w") as f:
-        json.dump(db, f, indent=2)
-
-db = load_db()
-
-# ================= USER =================
-def get_user(uid):
-    if uid not in db:
-        db[uid] = {
-            "name": None,
-            "mood": "neutral",
-            "anger": 0,
-            "trust": 5,
-            "affection": 0,
-            "xp": 0,
-            "level": 1,
-            "memory": []
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": f"Reply naturally in Hinglish like a human. User message: {text}"
+                        }
+                    ]
+                }
+            ]
         }
-    return db[uid]
 
-def save_user(uid, user):
-    db[uid] = user
-    save_db(db)
+        r = requests.post(url, json=payload, timeout=20)
 
-# ================= MEMORY =================
-def remember(user, msg):
-    user["memory"] = (user["memory"] + [msg])[-20:]
+        if r.status_code != 200:
+            print("STATUS:", r.status_code, r.text)
+            return f"API Error {r.status_code}"
 
-# ================= EMOTION =================
-def update_emotion(user, msg):
-    msg = msg.lower()
+        data = r.json()
 
-    if "bot" in msg:
-        user["anger"] += 1
-        user["trust"] -= 1
+        return data["candidates"][0]["content"]["parts"][0]["text"]
 
-    elif "sorry" in msg:
-        user["anger"] = max(0, user["anger"] - 1)
-        user["trust"] += 1
+    except Exception as e:
+        print("GEMINI ERROR:", repr(e))
+        return "😅 error aa gaya"
 
-    elif "love" in msg or "like" in msg:
-        user["affection"] += 1
-
-    else:
-        user["anger"] = max(0, user["anger"] - 0.05)
-
-    user["anger"] = min(user["anger"], 5)
-    user["trust"] = max(0, min(user["trust"], 10))
-    user["affection"] = max(0, min(user["affection"], 10))
-
-    if user["anger"] >= 4:
-        user["mood"] = "savage"
-    elif user["trust"] <= 2:
-        user["mood"] = "cold"
-    elif user["affection"] >= 7:
-        user["mood"] = "friendly"
-    else:
-        user["mood"] = "neutral"
-
-# ================= INTENT =================
-def detect_intent(msg):
-    msg = msg.lower()
-
-    if any(x in msg for x in ["hi", "hello", "hey"]):
-        return "greet"
-    if "love" in msg or "crush" in msg:
-        return "love"
-    if "study" in msg:
-        return "study"
-    if "friend" in msg or "yaar" in msg:
-        return "friend"
-    if "bot" in msg:
-        return "bot"
-
-    return "unknown"
-
-# ================= RESPONSES =================
-RESPONSES = {
-    "greet": ["Hey 👋", "Hello 😄", "Kaise ho 😌", "Namaste 🙏"],
-    "love": ["Pyaar complex hai ❤️‍🔥", "Feelings strong hoti hain 🫂"],
-    "study": ["Padh lo 📚", "Focus karo 🔥"],
-    "friend": ["Dosti priceless 🤝", "Main hamesha hu 🫂"],
-    "bot": ["Main bot nahi hu 😤", "Insaan hu samjha 😡"]
-}
-
-FALLBACK = {
-    "neutral": ["Acha 👀", "Samajh gaya 😌", "Interesting 🤔"],
-    "savage": ["Bas karo 😤", "Time waste mat karo 😑"],
-    "friendly": ["Nice 😄", "Good vibe ✨"],
-    "cold": ["Hmm 😐", "Ok."]
-}
-
-# ================= BRAIN =================
-def brain(user, intent):
-    pool = RESPONSES.get(intent, FALLBACK[user["mood"]])
-    reply = random.choice(pool)
-
-    if user["trust"] > 7:
-        reply += " 😌"
-    if user["anger"] > 3:
-        reply += " 😤"
-
-    return reply
-
-# ================= CORE =================
-def get_reply(user_id, message):
-    user = get_user(user_id)
-    msg = message.lower()
-
-    remember(user, msg)
-    update_emotion(user, msg)
-
-    intent = detect_intent(msg)
-
-    if "my name is" in msg:
-        name = msg.split("my name is")[-1].strip()
-        user["name"] = name
-        save_user(user_id, user)
-        return f"Nice to meet you {name} 😄"
-
-    if user["name"] and intent == "greet":
-        reply = f"Hey {user['name']} 😌"
-    else:
-        reply = brain(user, intent)
-
-    user["xp"] += 1
-    if user["xp"] % 10 == 0:
-        user["level"] += 1
-
-    save_user(user_id, user)
-    return reply
-
-# ================= HANDLER =================
-@client.on(events.NewMessage(chats=GROUP_USERNAME))
+# MESSAGE HANDLER
+@client.on(events.NewMessage)
 async def handler(event):
-    if not event.raw_text:
-        return
+    try:
+        if not event.is_group:
+            return
 
-    # reply only when mentioned (stable behavior)
-    if event.is_group and not event.mentioned:
-        return
+        if event.out:
+            return
 
-    user_id = str(event.sender_id)
-    text = event.raw_text
+        chat = await event.get_chat()
+        username = getattr(chat, "username", None)
 
-    reply = get_reply(user_id, text)
-    await event.reply(reply)
+        if username != TARGET_GROUP:
+            return
 
-# ================= START =================
-print("🤖 Bot running with StringSession (NO OTP MODE)")
+        msg = event.raw_text
+
+        # 50% chance reply
+        if random.randint(1, 100) > 50:
+            return
+
+        print("MESSAGE:", msg)
+
+        # Gemini reply
+        reply = gemini(msg)
+
+        # human-like delay
+        await asyncio.sleep(random.randint(3, 10))
+
+        print("REPLY:", reply)
+
+        # fallback
+        if not reply:
+            reply = "😄"
+
+        await event.reply(reply)
+
+    except Exception as e:
+        print("HANDLER ERROR:", repr(e))
+
+print("BOT STARTED")
 
 client.start()
+
+print("BOT RUNNING...")
+
 client.run_until_disconnected()
