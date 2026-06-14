@@ -209,16 +209,16 @@ async def handler(event):
 
         await asyncio.sleep(random.randint(4, 10))
 
-# 10% chance to send sticker
-if STICKERS and random.randint(1, 100) <= 10:
-    await client.send_file(
-        event.chat_id,
-        random.choice(STICKERS),
-        reply_to=event.id
-    )
-    return
+        # 10% chance to send sticker
+        if STICKERS and random.randint(1, 100) <= 10:
+            await client.send_file(
+                event.chat_id,
+                random.choice(STICKERS),
+                reply_to=event.id
+            )
+            return
 
-reply = gemini(msg)
+        reply = gemini(msg)
 
         if not reply:
             reply = "😄"
