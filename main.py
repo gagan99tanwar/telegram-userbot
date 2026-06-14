@@ -5,15 +5,21 @@ import os
 import random
 import asyncio
 
-print("VERSION TEST 999")
+print("🚀 STABLE PRO BOT STARTING...")
 
 # ENV VARIABLES
-api_id = int(os.getenv("API_ID"))
+api_id = int(os.getenv("API_ID", "0"))
 api_hash = os.getenv("API_HASH")
 string_session = os.getenv("STRING_SESSION")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 TARGET_GROUP = "serien_gays"
+
+# CHECK API KEY EARLY
+if not GEMINI_API_KEY:
+    print("❌ GEMINI_API_KEY MISSING IN RAILWAY VARIABLES")
+else:
+    print("✅ GEMINI API KEY LOADED")
 
 # TELEGRAM CLIENT
 client = TelegramClient(
@@ -22,38 +28,49 @@ client = TelegramClient(
     api_hash
 )
 
-# GEMINI FUNCTION (2.5 FLASH)
+# GEMINI CALL (SAFE + FALLBACK SYSTEM)
 def gemini(text):
-    print("USING GEMINI 2.5 FLASH")
+    models = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash"
+    ]
 
-    try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    for model in models:
+        try:
+            print(f"🤖 Trying model: {model}")
 
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": f"Reply naturally in Hinglish like a human. User message: {text}"
-                        }
-                    ]
-                }
-            ]
-        }
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
 
-        r = requests.post(url, json=payload, timeout=20)
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text": f"Reply naturally in Hinglish like a human. User message: {text}"
+                            }
+                        ]
+                    }
+                ]
+            }
 
-        if r.status_code != 200:
-            print("STATUS:", r.status_code, r.text)
-            return f"API Error {r.status_code}"
+            r = requests.post(url, json=payload, timeout=20)
 
-        data = r.json()
+            print("STATUS:", r.status_code)
 
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+            if r.status_code != 200:
+                print("ERROR RESPONSE:", r.text)
+                continue
 
-    except Exception as e:
-        print("GEMINI ERROR:", repr(e))
-        return "😅 error aa gaya"
+            data = r.json()
+
+            reply = data["candidates"][0]["content"]["parts"][0]["text"]
+            return reply
+
+        except Exception as e:
+            print(f"❌ Model {model} failed:", repr(e))
+            continue
+
+    return "😅 Sorry, abhi AI reply nahi de pa raha"
 
 # MESSAGE HANDLER
 @client.on(events.NewMessage)
@@ -73,33 +90,30 @@ async def handler(event):
 
         msg = event.raw_text
 
-        # 50% chance reply
+        # 50% reply chance
         if random.randint(1, 100) > 50:
             return
 
-        print("MESSAGE:", msg)
+        print("\n📩 MESSAGE:", msg)
 
-        # Gemini reply
+        # typing delay (human-like)
+        await asyncio.sleep(random.randint(2, 6))
+
         reply = gemini(msg)
 
-        # human-like delay
-        await asyncio.sleep(random.randint(3, 10))
+        print("💬 REPLY:", reply)
 
-        print("REPLY:", reply)
-
-        # fallback
-        if not reply:
-            reply = "😄"
+        await asyncio.sleep(random.randint(2, 5))
 
         await event.reply(reply)
 
     except Exception as e:
-        print("HANDLER ERROR:", repr(e))
+        print("❌ HANDLER ERROR:", repr(e))
 
-print("BOT STARTED")
+print("✅ BOT INITIALIZING...")
 
 client.start()
 
-print("BOT RUNNING...")
+print("🔥 BOT RUNNING SUCCESSFULLY")
 
 client.run_until_disconnected()
