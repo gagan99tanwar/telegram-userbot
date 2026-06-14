@@ -4,6 +4,8 @@ import requests
 import os
 import random
 import asyncio
+from telethon.tl.functions.messages import GetAllStickersRequest, GetStickerSetRequest
+from telethon.tl.types import InputStickerSetID
 
 print("🚀 ULTRA PRO BOT STARTING...")
 
@@ -44,6 +46,30 @@ client = TelegramClient(
     api_id,
     api_hash
 )
+STICKERS = []
+
+async def load_stickers():
+    global STICKERS
+
+    try:
+        sticker_sets = await client(GetAllStickersRequest(0))
+
+        for s in sticker_sets.sets[:5]:
+            stickers = await client(
+                GetStickerSetRequest(
+                    stickerset=InputStickerSetID(
+                        id=s.id,
+                        access_hash=s.access_hash
+                    )
+                )
+            )
+
+            STICKERS.extend(stickers.documents[:10])
+
+        print(f"✅ Loaded {len(STICKERS)} stickers")
+
+    except Exception as e:
+        print("❌ Sticker Load Error:", e)
 
 # =========================
 # GEMINI FUNCTION
@@ -182,6 +208,15 @@ async def handler(event):
         print("\n📩 MESSAGE:", msg)
 
         await asyncio.sleep(random.randint(4, 10))
+        # 10% chance to send sticker
+
+if STICKERS and random.randint(1, 100) <= 10:
+    await client.send_file(
+        event.chat_id,
+        random.choice(STICKERS),
+        reply_to=event.id
+    )
+    return
 
         reply = gemini(msg)
 
@@ -204,6 +239,8 @@ async def handler(event):
 print("✅ BOT INITIALIZING...")
 
 client.start()
+
+client.loop.run_until_complete(load_stickers())
 
 print("🔥 BOT RUNNING SUCCESSFULLY")
 
