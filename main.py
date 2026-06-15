@@ -348,10 +348,6 @@ async def handler(event):
     except Exception as e:
         print("ERROR:", e)
 
-# Ignore bots
-if getattr(sender, "bot", False):
-    return
-
 # =========================
 # START
 # =========================
