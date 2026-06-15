@@ -372,19 +372,19 @@ async def handler(event):
 
         me = await client.get_me()
 
-        # Mention check
+        # Only respond if mentioned or replied
         if not (event.mentioned or event.is_reply):
-    return
+           return
 
-        # Reply check
-        elif event.is_reply:
-            reply_msg = await event.get_reply_message()
+        # Reply check (only if it's a reply)
+        if event.is_reply:
+    reply_msg = await event.get_reply_message()
 
-            if not reply_msg:
-                return
+        if not reply_msg:
+           return
 
-            if reply_msg.sender_id != me.id:
-                return
+        if reply_msg.sender_id != me.id:
+           return
 
         else:
             return
