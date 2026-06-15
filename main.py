@@ -327,13 +327,23 @@ async def handler(event):
         rel = get_relation(uid)
 
         remember(user, msg)
-        mood(user, msg)
-        evolve(rel, msg)
+mood(user, msg)
+evolve(rel, msg)
 
-        g = gemini(msg)
+context = "\n".join(user["msgs"][-5:])
 
-        if not g:
-            return
+g = gemini(
+    f"""
+Recent conversation:
+{context}
+
+Current message:
+{msg}
+"""
+)
+
+if not g:
+    return
 
         reply = g.replace("bhai", "yaar")
 
