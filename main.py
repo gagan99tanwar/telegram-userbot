@@ -389,8 +389,8 @@ async def handler(event):
 
         else:
             return
-
-        uid = event.sender_id
+            
+uid = event.sender_id
 user = get_user(uid)
 rel = get_relation(uid)
 
@@ -400,7 +400,6 @@ evolve(rel, msg)
 
 context = "\n".join(user["msgs"][-5:])
 
-# 👇 YAHAN SE START HOGA
 g = gemini(
     f"""
 Recent conversation:
@@ -426,7 +425,6 @@ if random.randint(1, 100) < 20:
     await send_random_sticker(event)
 
 last_reply_time = now
-# 👆 YAHAN TAK
 
 # =========================
 # START
