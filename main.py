@@ -295,6 +295,23 @@ async def handler(event):
 
         if now - last_reply_time < COOLDOWN:
             return
+            # <<< YAHAN SE TUMHARA NAYA BLOCK START >>>
+
+        sender = await event.get_sender()
+
+        if getattr(sender, "bot", False):
+            return
+
+        me = await client.get_me()
+
+        ...
+        ...
+        last_reply_time = now
+
+        # <<< YAHAN TAK NAYA BLOCK >>>
+
+    except Exception as e:
+        print("ERROR:", e)
 
         sender = await event.get_sender()
 
