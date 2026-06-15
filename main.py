@@ -42,7 +42,7 @@ client = TelegramClient(
 STICKERS = []
 
 # =========================
-# API ROTATION ENGINE (LEVEL 100)
+# API ROTATION ENGINE
 # =========================
 
 key_status = {k: "active" for k in GEMINI_KEYS if k}
@@ -50,8 +50,8 @@ key_index = 0
 
 def get_next_key():
     global key_index
-
     keys = list(key_status.keys())
+
     if not keys:
         return None
 
@@ -67,6 +67,7 @@ def get_next_key():
 
 def mark_bad(key):
     key_status[key] = "cooldown"
+
 
 async def revive_keys():
     while True:
@@ -89,6 +90,7 @@ def get_user(uid):
         }
     return USER_DB[uid]
 
+
 def remember(user, msg):
     user["msgs"].append(msg)
     if len(user["msgs"]) > 25:
@@ -105,6 +107,7 @@ def get_relation(uid):
         SOCIAL[uid] = {"trust": 0, "level": 0}
     return SOCIAL[uid]
 
+
 def evolve(rel, text):
     rel["trust"] += 1 if "?" in text else 0
     rel["trust"] += 2 if "yaar" in text.lower() else 0
@@ -115,7 +118,7 @@ def evolve(rel, text):
         rel["level"] = 1
 
 # =========================
-# PERSONALITY ENGINE
+# PERSONALITY
 # =========================
 
 def mood(user, text):
@@ -146,60 +149,31 @@ def topic(text):
 
 def local_reply(text, user, rel, topic):
     if rel["level"] == 2:
-        return random.choice(["haan yaar 😄", "abe nikal na🤢🔥", "theek hai bro"])
+        return random.choice(["haan yaar 😄", "land lele 🔥", "theek hai bro"])
 
     if topic == "gaming":
         return "game chal raha hai 🔥"
 
     if user["personality"] == "funny":
-        return "arre yaar 😂"
+        return "bsdk gendu 😂"
 
-    return "haan theek hai 👍"
+    return "bsdk gendu 👍"
 
 # =========================
-# GEMINI (ROTATION)
+# GEMINI API
 # =========================
 
 def gemini(text):
     models = ["gemini-2.5-flash", "gemini-2.0-flash"]
 
     prompt = f"""
-You are "Arjun", a real human boy from Haryana in a Telegram group.
+You are a natural Haryana boy in Telegram group.
+Short Hinglish replies. No AI mention. Abusive language.
 
-Identity Rules:
-- You are NOT an AI, bot, assistant or model.
-- You are a real Indian boy from Haryana chatting casually in a group.
-- Never mention Gemini, ChatGPT, AI or technology.
-
-Language Style:
-- Speak in natural Hinglish with strong Haryanvi desi tone.
-- Use casual slang sometimes:
-  "abe chutiye", "gand mara", "arr sun yrr", "bhem ke lode", "mere lode pe beth ja aja lavde", "koi na", "chal nikl gendu"
-- Keep replies short (1-2 lines max).
-
-Personality:
-- Friendly, slightly bold, confident desi boy.
-- Funny and witty in conversations.
-- Never sound formal or robotic.
-- Act like a normal group member with emotions and opinions.
-
-Emojis:
-- Use 0 or 1 emoji only sometimes.
-- Never send only emoji.
-
-Behavior Rules:
-- If someone jokes → reply with desi humor.
-- If someone insults → respond confidently abusive.
-- If someone is sad → comfort naturally like a friend.
-- If someone flirts → respond casually, not overacting.
-- Avoid repeating same type of replies.
-
-User message:
-{text}
+User: {text}
 """
 
     for model in models:
-
         key = get_next_key()
         if not key:
             return None
@@ -228,20 +202,14 @@ User message:
     return None
 
 # =========================
-# HUMAN DELAY
-# =========================
-
-async def human_delay():
-    await asyncio.sleep(random.uniform(2.5, 5.5))
-
-# =========================
-# STICKERS
+# STICKERS LOADER
 # =========================
 
 async def load_stickers():
     global STICKERS
     try:
         sets = await client(GetAllStickersRequest(0))
+
         for s in sets.sets[:3]:
             pack = await client(
                 GetStickerSetRequest(
@@ -249,9 +217,34 @@ async def load_stickers():
                     hash=0
                 )
             )
-            STICKERS.extend(pack.documents[:5])
+            STICKERS.extend(pack.documents[:10])
+
+        print(f"✅ Stickers Loaded: {len(STICKERS)}")
+
+    except Exception as e:
+        print("Sticker Error:", e)
+
+# =========================
+# SEND STICKER (NEW FEATURE)
+# =========================
+
+async def send_random_sticker(event):
+    if not STICKERS:
+        return False
+
+    try:
+        sticker = random.choice(STICKERS)
+        await client.send_file(event.chat_id, sticker)
+        return True
     except:
-        pass
+        return False
+
+# =========================
+# HUMAN DELAY
+# =========================
+
+async def human_delay():
+    await asyncio.sleep(random.uniform(2.5, 5.5))
 
 # =========================
 # HANDLER
@@ -278,14 +271,9 @@ async def handler(event):
         if now - last_reply_time < COOLDOWN:
             return
 
-        def should_reply_human(event, rel):
-    if event.mentioned or event.is_reply:
-        return True
-
-    if rel["level"] >= 2:
-        return random.randint(1, 100) < 70
-
-    return random.randint(1, 100) < 35
+        # safe control (prevents spam / wrong chats)
+        if random.randint(1, 100) < 40:
+            return
 
         uid = event.sender_id
         user = get_user(uid)
@@ -299,6 +287,7 @@ async def handler(event):
 
         reply = local_reply(msg, user, rel, t)
 
+        # Gemini chance
         if random.randint(1, 100) < 30:
             g = gemini(msg)
             if g:
@@ -307,7 +296,12 @@ async def handler(event):
         reply = reply.replace("bhai", "yaar")
 
         await human_delay()
+
         await event.reply(reply)
+
+        # 🔥 Sticker chance system
+        if random.randint(1, 100) < 20:
+            await send_random_sticker(event)
 
         last_reply_time = now
 
@@ -322,5 +316,5 @@ client.start()
 client.loop.create_task(revive_keys())
 client.loop.run_until_complete(load_stickers())
 
-print("🔥 LEVEL 100 BOT RUNNING (STABLE MODE)")
+print("🔥 LEVEL 100 BOT RUNNING (STABLE + STICKER MODE)")
 client.run_until_disconnected()
