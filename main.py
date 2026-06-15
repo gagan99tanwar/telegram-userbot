@@ -425,6 +425,9 @@ Current message:
             await send_random_sticker(event)
 
         last_reply_time = now
+
+    except Exception as e:
+        print("ERROR:", e)
         
 # =========================
 # START
