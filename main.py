@@ -389,43 +389,43 @@ async def handler(event):
 
         else:
             return
-            
-uid = event.sender_id
-user = get_user(uid)
-rel = get_relation(uid)
 
-remember(user, msg)
-mood(user, msg)
-evolve(rel, msg)
+        uid = event.sender_id
+        user = get_user(uid)
+        rel = get_relation(uid)
 
-context = "\n".join(user["msgs"][-5:])
+        remember(user, msg)
+        mood(user, msg)
+        evolve(rel, msg)
 
-g = gemini(
-    f"""
+        context = "\n".join(user["msgs"][-5:])
+
+        g = gemini(
+            f"""
 Recent conversation:
 {context}
 
 Current message:
 {msg}
 """
-)
+        )
 
-if not g:
-    return
+        if not g:
+            return
 
-reply = g.replace("bhai", "yaar")
+        reply = g.replace("bhai", "yaar")
 
-typing_time = min(len(reply) / 8, 6)
+        typing_time = min(len(reply) / 8, 6)
 
-async with client.action(event.chat_id, "typing"):
-    await asyncio.sleep(typing_time)
-    await event.reply(reply)
+        async with client.action(event.chat_id, "typing"):
+            await asyncio.sleep(typing_time)
+            await event.reply(reply)
 
-if random.randint(1, 100) < 20:
-    await send_random_sticker(event)
+        if random.randint(1, 100) < 20:
+            await send_random_sticker(event)
 
-last_reply_time = now
-
+        last_reply_time = now
+        
 # =========================
 # START
 # =========================
