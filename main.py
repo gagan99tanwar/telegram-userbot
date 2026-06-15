@@ -22,6 +22,9 @@ GEMINI_KEYS = [
     os.getenv("GEMINI_API_KEY_1"),
     os.getenv("GEMINI_API_KEY_2"),
     os.getenv("GEMINI_API_KEY_3"),
+    os.getenv("GEMINI_API_KEY_4"),
+    os.getenv("GEMINI_API_KEY_5"),
+    os.getenv("GEMINI_API_KEY_6"),
 ]
 
 TARGET_GROUP = "serien_gays"
@@ -174,7 +177,9 @@ Identity Rules:
 Language Style:
 - Speak in natural Hinglish with Gen-Z tone.
 - Use casual slang sometimes:
-  "abe chutiye", "gand mara", "arr sun yrr", "bhem ke lode", "mere lode pe beth ja aja lavde", "koi na", "chal nikl gendu"
+- Do NOT use abusive language unless the other person used abusive language first.
+- Normally speak friendly and casual.
+- Match the tone of the other person's message.
 - Keep replies short (1-2 lines max).
 
 Personality:
@@ -406,9 +411,9 @@ Current message:
         )
 
         if not g:
-            return
+    return
 
-        reply = g.replace("bhai", "yaar")
+reply = g.replace("bhai", "yaar")
 
 typing_time = min(len(reply) / 8, 6)
 
@@ -420,7 +425,7 @@ await event.reply(reply)
 if random.randint(1, 100) < 20:
     await send_random_sticker(event)
 
-        last_reply_time = now
+last_reply_time = now
 
     except Exception as e:
         print("ERROR:", e)
