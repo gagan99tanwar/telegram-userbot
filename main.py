@@ -401,16 +401,16 @@ async def handler(event):
         context = "\n".join(user["msgs"][-5:])
 
         g = gemini(
-            f"""
+    f"""
 Recent conversation:
-            {context}
+{context}
 
 Current message:
-            {msg}
-            """
-        )
+{msg}
+"""
+)
 
-        if not g:
+if not g:
     return
 
 reply = g.replace("bhai", "yaar")
