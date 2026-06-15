@@ -298,95 +298,29 @@ async def handler(event):
 
         sender = await event.get_sender()
 
-# Ignore bots
-if getattr(sender, "bot", False):
-    return
-
-me = await client.get_me()
-
-# Reply only if mentioned
-if event.mentioned:
-    if me.username and f"@{me.username.lower()}" not in msg.lower():
-        return
-
-# Reply only if someone replied to your message
-elif event.is_reply:
-    reply_msg = await event.get_reply_message()
-
-    if not reply_msg:
-        return
-
-    if reply_msg.sender_id != me.id:
-        return
-
-# Ignore random group messages
-else:
-    return
-
-uid = event.sender_id
-user = get_user(uid)
-rel = get_relation(uid)
-
-remember(user, msg)
-mood(user, msg)
-evolve(rel, msg)
-
-g = gemini(msg)
-
-if not g:
-    return
-
-reply = g.replace("bhai", "yaar")
-
-await human_delay()
-await event.reply(reply)
-
-# Sticker chance
-if random.randint(1, 100) < 20:
-    await send_random_sticker(event)
-
-last_reply_time = now
-            # <<< YAHAN SE TUMHARA NAYA BLOCK START >>>
-
-        sender = await event.get_sender()
-
+        # Ignore bots
         if getattr(sender, "bot", False):
             return
 
         me = await client.get_me()
 
-        ...
-        ...
-        last_reply_time = now
+        # Mention check
+        if event.mentioned:
+            if me.username and f"@{me.username.lower()}" not in msg.lower():
+                return
 
-        # <<< YAHAN TAK NAYA BLOCK >>>
+        # Reply check
+        elif event.is_reply:
+            reply_msg = await event.get_reply_message()
 
-    except Exception as e:
-        print("ERROR:", e)
+            if not reply_msg:
+                return
 
-        sender = await event.get_sender()
+            if reply_msg.sender_id != me.id:
+                return
 
-# Ignore bots
-if getattr(sender, "bot", False):
-    return
-
-me = await client.get_me()
-
-if event.mentioned:
-    if me.username and f"@{me.username.lower()}" not in msg.lower():
-        return
-
-elif event.is_reply:
-    reply_msg = await event.get_reply_message()
-
-    if not reply_msg:
-        return
-
-    if reply_msg.sender_id != me.id:
-        return
-
-else:
-    return
+        else:
+            return
 
         uid = event.sender_id
         user = get_user(uid)
@@ -406,7 +340,6 @@ else:
         await human_delay()
         await event.reply(reply)
 
-        # 🔥 Sticker chance system
         if random.randint(1, 100) < 20:
             await send_random_sticker(event)
 
@@ -414,6 +347,10 @@ else:
 
     except Exception as e:
         print("ERROR:", e)
+
+# Ignore bots
+if getattr(sender, "bot", False):
+    return
 
 # =========================
 # START
