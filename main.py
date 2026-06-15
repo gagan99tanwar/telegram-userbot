@@ -4,41 +4,33 @@ import requests
 import os
 import random
 import asyncio
+import time
 from telethon.tl.functions.messages import GetAllStickersRequest, GetStickerSetRequest
 from telethon.tl.types import InputStickerSetID
 
-print("🚀 ULTRA PRO BOT STARTING...")
+print("🚀 LEVEL 100 SOCIAL USERBOT STARTING...")
 
 # =========================
-# ENV VARIABLES
+# ENV
 # =========================
 
 api_id = int(os.getenv("API_ID", "0"))
 api_hash = os.getenv("API_HASH")
 string_session = os.getenv("STRING_SESSION")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+GEMINI_KEYS = [
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2"),
+    os.getenv("GEMINI_API_KEY_3"),
+]
 
 TARGET_GROUP = "serien_gays"
 
-# Cooldown (seconds)
-COOLDOWN = 15
+COOLDOWN = 12
 last_reply_time = 0
 
 # =========================
-# CHECK VARIABLES
-# =========================
-
-if not GEMINI_API_KEY:
-    print("❌ GEMINI_API_KEY NOT FOUND")
-else:
-    print("✅ GEMINI_API_KEY LOADED")
-
-if not api_id or not api_hash or not string_session:
-    print("❌ Missing Telegram credentials")
-    exit()
-
-# =========================
-# TELEGRAM CLIENT
+# CLIENT
 # =========================
 
 client = TelegramClient(
@@ -46,44 +38,133 @@ client = TelegramClient(
     api_id,
     api_hash
 )
+
 STICKERS = []
 
-async def load_stickers():
-    global STICKERS
+# =========================
+# API ROTATION ENGINE (LEVEL 100)
+# =========================
 
-    try:
-        sticker_sets = await client(GetAllStickersRequest(0))
+key_status = {k: "active" for k in GEMINI_KEYS if k}
+key_index = 0
 
-        for s in sticker_sets.sets[:5]:
-            stickers = await client(
-    GetStickerSetRequest(
-        stickerset=InputStickerSetID(
-            id=s.id,
-            access_hash=s.access_hash
-        ),
-        hash=0
-    )
-            )
+def get_next_key():
+    global key_index
 
-            STICKERS.extend(stickers.documents[:10])
+    keys = list(key_status.keys())
+    if not keys:
+        return None
 
-        print(f"✅ Loaded {len(STICKERS)} stickers")
+    for _ in range(len(keys)):
+        key = keys[key_index % len(keys)]
+        key_index += 1
 
-    except Exception as e:
-        print("❌ Sticker Load Error:", e)
+        if key_status.get(key) == "active":
+            return key
+
+    return None
+
+
+def mark_bad(key):
+    key_status[key] = "cooldown"
+
+async def revive_keys():
+    while True:
+        await asyncio.sleep(60)
+        for k in key_status:
+            key_status[k] = "active"
 
 # =========================
-# GEMINI FUNCTION
+# MEMORY SYSTEM
+# =========================
+
+USER_DB = {}
+
+def get_user(uid):
+    if uid not in USER_DB:
+        USER_DB[uid] = {
+            "msgs": [],
+            "personality": "neutral",
+            "activity": 0
+        }
+    return USER_DB[uid]
+
+def remember(user, msg):
+    user["msgs"].append(msg)
+    if len(user["msgs"]) > 25:
+        user["msgs"].pop(0)
+
+# =========================
+# SOCIAL GRAPH
+# =========================
+
+SOCIAL = {}
+
+def get_relation(uid):
+    if uid not in SOCIAL:
+        SOCIAL[uid] = {"trust": 0, "level": 0}
+    return SOCIAL[uid]
+
+def evolve(rel, text):
+    rel["trust"] += 1 if "?" in text else 0
+    rel["trust"] += 2 if "yaar" in text.lower() else 0
+
+    if rel["trust"] > 25:
+        rel["level"] = 2
+    elif rel["trust"] > 10:
+        rel["level"] = 1
+
+# =========================
+# PERSONALITY ENGINE
+# =========================
+
+def mood(user, text):
+    t = text.lower()
+
+    if "😂" in t:
+        user["personality"] = "funny"
+    elif "sad" in t:
+        user["personality"] = "calm"
+    elif "?" in t:
+        user["personality"] = "curious"
+
+# =========================
+# TOPIC ENGINE
+# =========================
+
+def topic(text):
+    t = text.lower()
+    if "game" in t:
+        return "gaming"
+    if "sad" in t:
+        return "emotion"
+    return "general"
+
+# =========================
+# LOCAL BRAIN
+# =========================
+
+def local_reply(text, user, rel, topic):
+    if rel["level"] == 2:
+        return random.choice(["haan yaar 😄", "bol kya scene 🔥", "theek hai bro"])
+
+    if topic == "gaming":
+        return "game chal raha hai 🔥"
+
+    if user["personality"] == "funny":
+        return "arre yaar 😂"
+
+    return "haan theek hai 👍"
+
+# =========================
+# GEMINI (ROTATION)
 # =========================
 
 def gemini(text):
-    models = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash"
-    ]
+    models = ["gemini-2.5-flash", "gemini-2.0-flash"]
 
     prompt = f"""
-You are "Jaat Arjun", a real human boy from Haryana in a Telegram group.
+You are "Arjun", a real human boy from Haryana in a Telegram group.
 
 Identity Rules:
 - You are NOT an AI, bot, assistant or model.
@@ -93,7 +174,7 @@ Identity Rules:
 Language Style:
 - Speak in natural Hinglish with strong Haryanvi desi tone.
 - Use casual slang sometimes:
-  "kya baat se", "theek se", "arr sun bhai", "katti mast", "chill hai", "koi na", "seeti maar di"
+  "abe chutiye", "gand mara", "arr sun yrr", "bhem ke lode", "mere lode pe beth ja aja lavde", "koi na", "chal nikl gendu"
 - Keep replies short (1-2 lines max).
 
 Personality:
@@ -118,47 +199,62 @@ User message:
 """
 
     for model in models:
+
+        key = get_next_key()
+        if not key:
+            return None
+
         try:
-            print(f"🤖 Trying model: {model}")
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
 
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+            r = requests.post(url, json={
+                "contents": [{"parts": [{"text": prompt}]}]
+            }, timeout=15)
 
-            payload = {
-                "contents": [
-                    {
-                        "parts": [
-                            {
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ]
-            }
-
-            r = requests.post(
-                url,
-                json=payload,
-                timeout=20
-            )
-
-            print("STATUS:", r.status_code)
+            if r.status_code in [403, 429]:
+                mark_bad(key)
+                continue
 
             if r.status_code != 200:
-                print("ERROR:", r.text)
                 continue
 
             data = r.json()
-
             return data["candidates"][0]["content"]["parts"][0]["text"]
 
-        except Exception as e:
-            print("MODEL ERROR:", repr(e))
+        except:
+            mark_bad(key)
             continue
 
-    return ""
+    return None
 
 # =========================
-# MESSAGE HANDLER
+# HUMAN DELAY
+# =========================
+
+async def human_delay():
+    await asyncio.sleep(random.uniform(2.5, 5.5))
+
+# =========================
+# STICKERS
+# =========================
+
+async def load_stickers():
+    global STICKERS
+    try:
+        sets = await client(GetAllStickersRequest(0))
+        for s in sets.sets[:3]:
+            pack = await client(
+                GetStickerSetRequest(
+                    stickerset=InputStickerSetID(id=s.id, access_hash=s.access_hash),
+                    hash=0
+                )
+            )
+            STICKERS.extend(pack.documents[:5])
+    except:
+        pass
+
+# =========================
+# HANDLER
 # =========================
 
 @client.on(events.NewMessage)
@@ -166,89 +262,59 @@ async def handler(event):
     global last_reply_time
 
     try:
-        if not event.is_group:
-            return
-
-        if event.out:
-            return
-
-        sender = await event.get_sender()
-
-        if getattr(sender, "bot", False):
+        if not event.is_group or event.out:
             return
 
         chat = await event.get_chat()
-        username = getattr(chat, "username", None)
-
-        if username != TARGET_GROUP:
+        if getattr(chat, "username", None) != TARGET_GROUP:
             return
 
         msg = event.raw_text.strip()
-
         if len(msg) < 2:
             return
 
-        must_reply = False
+        now = time.time()
 
-        if event.mentioned:
-            must_reply = True
-
-        if event.is_reply:
-            try:
-                replied = await event.get_reply_message()
-
-                if replied and replied.out:
-                    must_reply = True
-            except Exception:
-                pass
-
-        now = asyncio.get_event_loop().time()
-
-        if not must_reply:
-
-            if now - last_reply_time < COOLDOWN:
-                return
-
-            if random.randint(1, 100) > 50:
-                return
-
-        print("\n📩 MESSAGE:", msg)
-
-        await asyncio.sleep(random.randint(4, 10))
-
-        # 10% chance to send sticker
-        if STICKERS and random.randint(1, 100) <= 10:
-            await client.send_file(
-                event.chat_id,
-                random.choice(STICKERS),
-                reply_to=event.id
-            )
+        if now - last_reply_time < COOLDOWN:
             return
 
-        reply = gemini(msg)
+        if random.randint(1, 100) < 40:
+            return
 
-        if not reply:
-            reply = ""
+        uid = event.sender_id
+        user = get_user(uid)
+        rel = get_relation(uid)
 
-        print("💬 REPLY:", reply)
+        remember(user, msg)
+        mood(user, msg)
+        evolve(rel, msg)
 
+        t = topic(msg)
+
+        reply = local_reply(msg, user, rel, t)
+
+        if random.randint(1, 100) < 30:
+            g = gemini(msg)
+            if g:
+                reply = g
+
+        reply = reply.replace("bhai", "yaar")
+
+        await human_delay()
         await event.reply(reply)
 
         last_reply_time = now
 
     except Exception as e:
-        print("❌ HANDLER ERROR:", repr(e))
+        print("ERROR:", e)
 
 # =========================
-# START BOT
+# START
 # =========================
-
-print("✅ BOT INITIALIZING...")
 
 client.start()
-
+client.loop.create_task(revive_keys())
 client.loop.run_until_complete(load_stickers())
 
-print("🔥 BOT RUNNING SUCCESSFULLY")
-
+print("🔥 LEVEL 100 BOT RUNNING (STABLE MODE)")
 client.run_until_disconnected()
