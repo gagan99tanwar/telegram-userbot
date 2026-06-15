@@ -337,7 +337,7 @@ async def send_random_sticker(event):
 # =========================
 
 async def human_delay():
-    await asyncio.sleep(random.uniform(2.5, 5.5))
+    await asyncio.sleep(random.uniform(0.5, 2.5))
     
 # =========================
 # HANDLER
@@ -376,17 +376,6 @@ async def handler(event):
         if not (event.mentioned or event.is_reply):
             return
 
-        # If it's a reply, validate it properly
-        if event.is_reply:
-            reply_msg = await event.get_reply_message()
-
-            if not reply_msg:
-                return
-
-            if reply_msg.sender_id != me.id:
-                return
-        else:
-            return
 
         uid = event.sender_id
         user = get_user(uid)
@@ -413,7 +402,7 @@ Current message:
 
         reply = g.replace("bhai", "yaar")
 
-        typing_time = min(len(reply) / 8, 6)
+        typing_time = min(len(reply) / 0.8, 2.0)
 
         async with client.action(event.chat_id, "typing"):
             await asyncio.sleep(typing_time)
