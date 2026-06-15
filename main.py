@@ -146,7 +146,7 @@ def topic(text):
 
 def local_reply(text, user, rel, topic):
     if rel["level"] == 2:
-        return random.choice(["haan yaar 😄", "bol kya scene 🔥", "theek hai bro"])
+        return random.choice(["haan yaar 😄", "abe nikal na🤢🔥", "theek hai bro"])
 
     if topic == "gaming":
         return "game chal raha hai 🔥"
@@ -189,7 +189,7 @@ Emojis:
 
 Behavior Rules:
 - If someone jokes → reply with desi humor.
-- If someone insults → respond confidently but not abusive.
+- If someone insults → respond confidently abusive.
 - If someone is sad → comfort naturally like a friend.
 - If someone flirts → respond casually, not overacting.
 - Avoid repeating same type of replies.
@@ -278,8 +278,14 @@ async def handler(event):
         if now - last_reply_time < COOLDOWN:
             return
 
-        if random.randint(1, 100) < 40:
-            return
+        def should_reply_human(event, rel):
+    if event.mentioned or event.is_reply:
+        return True
+
+    if rel["level"] >= 2:
+        return random.randint(1, 100) < 70
+
+    return random.randint(1, 100) < 35
 
         uid = event.sender_id
         user = get_user(uid)
