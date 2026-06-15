@@ -363,7 +363,7 @@ async def handler(event):
 
         if now - last_reply_time < COOLDOWN:
             await asyncio.sleep(1)
-         return
+            return
 
         sender = await event.get_sender()
 
