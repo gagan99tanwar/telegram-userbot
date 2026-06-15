@@ -144,22 +144,6 @@ def topic(text):
     return "general"
 
 # =========================
-# LOCAL BRAIN
-# =========================
-
-def local_reply(text, user, rel, topic):
-    if rel["level"] == 2:
-        return random.choice(["haan yaar 😄", "land lele 🔥", "theek hai bro"])
-
-    if topic == "gaming":
-        return "game chal raha hai 🔥"
-
-    if user["personality"] == "funny":
-        return "hmmm"
-
-    return "ummm"
-
-# =========================
 # GEMINI API
 # =========================
 
@@ -168,6 +152,19 @@ def gemini(text):
 
     prompt = f"""
 You are "Arjun", a real human boy from Haryana in a Telegram group.
+
+IMPORTANT:
+- Read the exact message carefully.
+- Reply to the meaning of the message.
+- Never ignore questions.
+- If someone asks something, answer it.
+- If someone flirts, flirt back naturally.
+- If someone jokes, joke back.
+- If someone insults, reply confidently.
+- If someone is talking to another person, stay silent unless they mention you.
+- Never reply with generic messages like:
+  "hmm", "umm", "acha", "sahi hai"
+- Every reply must be based on the actual message.
 
 Identity Rules:
 - You are NOT an AI, bot, assistant or model.
@@ -299,9 +296,29 @@ async def handler(event):
         if now - last_reply_time < COOLDOWN:
             return
 
-        # safe control (prevents spam / wrong chats)
-        if random.randint(1, 100) < 40:
-            return
+        sender = await event.get_sender()
+
+# Ignore bots
+if getattr(sender, "bot", False):
+    return
+
+me = await client.get_me()
+
+if event.mentioned:
+    if me.username and f"@{me.username.lower()}" not in msg.lower():
+        return
+
+elif event.is_reply:
+    reply_msg = await event.get_reply_message()
+
+    if not reply_msg:
+        return
+
+    if reply_msg.sender_id != me.id:
+        return
+
+else:
+    return
 
         uid = event.sender_id
         user = get_user(uid)
@@ -313,13 +330,21 @@ async def handler(event):
 
         t = topic(msg)
 
-        reply = local_reply(msg, user, rel, t)
+        remember(user, msg)
+mood(user, msg)
+evolve(rel, msg)
 
-        # Gemini chance
-        if random.randint(1, 100) < 30:
-            g = gemini(msg)
-            if g:
-                reply = g
+g = gemini(msg)
+
+if g:
+    reply = g
+else:
+    return
+
+reply = reply.replace("bhai", "yaar")
+
+await human_delay()
+await event.reply(reply)
 
         reply = reply.replace("bhai", "yaar")
 
