@@ -362,7 +362,8 @@ async def handler(event):
         now = time.time()
 
         if now - last_reply_time < COOLDOWN:
-            return
+            await asyncio.sleep(1)
+         return
 
         sender = await event.get_sender()
 
@@ -402,7 +403,7 @@ Current message:
 
         reply = g.replace("bhai", "yaar")
 
-        typing_time = min(len(reply) / 0.8, 2.0)
+        typing_time = min(len(reply) / 2.0, 4.0)
 
         async with client.action(event.chat_id, "typing"):
             await asyncio.sleep(typing_time)
