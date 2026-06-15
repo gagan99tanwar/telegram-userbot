@@ -26,7 +26,7 @@ GEMINI_KEYS = [
 
 TARGET_GROUP = "serien_gays"
 
-COOLDOWN = 12
+COOLDOWN = 8
 last_reply_time = 0
 
 # =========================
@@ -93,7 +93,7 @@ def get_user(uid):
 
 def remember(user, msg):
     user["msgs"].append(msg)
-    if len(user["msgs"]) > 25:
+    if len(user["msgs"]) > 200:
         user["msgs"].pop(0)
 
 # =========================
@@ -211,6 +211,11 @@ Personality:
 - Have opinions.
 - Never sound like customer support.
 - Keep replies short (1-2 lines).
+Memory Rules:
+- Remember recent conversation context.
+- Refer to things users said earlier.
+- Avoid repeating the same reply style.
+- Respond like someone who has been following the conversation.
 User message:
 {text}
 """
