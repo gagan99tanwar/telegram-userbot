@@ -328,28 +328,14 @@ else:
         mood(user, msg)
         evolve(rel, msg)
 
-        t = topic(msg)
+        g = gemini(msg)
 
-        remember(user, msg)
-mood(user, msg)
-evolve(rel, msg)
+        if not g:
+            return
 
-g = gemini(msg)
-
-if g:
-    reply = g
-else:
-    return
-
-reply = reply.replace("bhai", "yaar")
-
-await human_delay()
-await event.reply(reply)
-
-        reply = reply.replace("bhai", "yaar")
+        reply = g.replace("bhai", "yaar")
 
         await human_delay()
-
         await event.reply(reply)
 
         # 🔥 Sticker chance system
