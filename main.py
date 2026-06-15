@@ -373,9 +373,8 @@ async def handler(event):
         me = await client.get_me()
 
         # Mention check
-        if event.mentioned:
-            if me.username and f"@{me.username.lower()}" not in msg.lower():
-                return
+        if not (event.mentioned or event.is_reply):
+    return
 
         # Reply check
         elif event.is_reply:
