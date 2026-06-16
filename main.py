@@ -5,6 +5,7 @@ import os
 import random
 import asyncio
 import time
+from collections import deque
 from telethon.tl.functions.messages import GetAllStickersRequest, GetStickerSetRequest
 from telethon.tl.types import InputStickerSetID
 
@@ -45,6 +46,13 @@ client = TelegramClient(
 STICKERS = []
 
 # =========================
+# QUEUE SYSTEM (FIX)
+# =========================
+
+MESSAGE_QUEUE = deque()
+processing = False
+
+# =========================
 # API ROTATION ENGINE
 # =========================
 
@@ -79,20 +87,15 @@ async def revive_keys():
             key_status[k] = "active"
 
 # =========================
-# MEMORY SYSTEM
+# MEMORY
 # =========================
 
 USER_DB = {}
 
 def get_user(uid):
     if uid not in USER_DB:
-        USER_DB[uid] = {
-            "msgs": [],
-            "personality": "neutral",
-            "activity": 0
-        }
+        USER_DB[uid] = {"msgs": [], "personality": "neutral"}
     return USER_DB[uid]
-
 
 def remember(user, msg):
     user["msgs"].append(msg)
@@ -100,7 +103,7 @@ def remember(user, msg):
         user["msgs"].pop(0)
 
 # =========================
-# SOCIAL GRAPH
+# SOCIAL
 # =========================
 
 SOCIAL = {}
@@ -110,52 +113,19 @@ def get_relation(uid):
         SOCIAL[uid] = {"trust": 0, "level": 0}
     return SOCIAL[uid]
 
-
 def evolve(rel, text):
     rel["trust"] += 1 if "?" in text else 0
     rel["trust"] += 2 if "yaar" in text.lower() else 0
 
-    if rel["trust"] > 25:
-        rel["level"] = 2
-    elif rel["trust"] > 10:
-        rel["level"] = 1
-
 # =========================
-# PERSONALITY
-# =========================
-
-def mood(user, text):
-    t = text.lower()
-
-    if "😂" in t:
-        user["personality"] = "funny"
-    elif "sad" in t:
-        user["personality"] = "calm"
-    elif "?" in t:
-        user["personality"] = "curious"
-
-# =========================
-# TOPIC ENGINE
-# =========================
-
-def topic(text):
-    t = text.lower()
-    if "game" in t:
-        return "gaming"
-    if "sad" in t:
-        return "emotion"
-    return "general"
-
-# =========================
-# GEMINI API
+# GEMINI
 # =========================
 
 def gemini(text):
     models = ["gemini-2.5-flash", "gemini-2.0-flash"]
 
     prompt = f"""
-You are "Arun", a real human Gen-Z boy in a Telegram group.
-
+You are a Gen-Z boy in Telegram group.
 IMPORTANT:
 - Read the exact message carefully.
 - Reply to the meaning of the message.
@@ -263,6 +233,9 @@ Emotional Examples:
 - Excited → "nah that's crazy fr"
 - Embarrassed → "abe chup 😭"
 - Shocked → "wtf 💀"
+
+Reply naturally, short (1-2 lines), casual Hinglish.
+
 {text}
 """
 
@@ -290,149 +263,118 @@ Emotional Examples:
 
         except:
             mark_bad(key)
-            continue
 
     return None
 
 # =========================
-# STICKERS LOADER
+# QUEUE PROCESSOR
 # =========================
 
-async def load_stickers():
-    global STICKERS
-    try:
-        sets = await client(GetAllStickersRequest(0))
+async def process_queue():
+    global processing, last_reply_time
 
-        for s in sets.sets[:3]:
-            pack = await client(
-                GetStickerSetRequest(
-                    stickerset=InputStickerSetID(id=s.id, access_hash=s.access_hash),
-                    hash=0
-                )
-            )
-            STICKERS.extend(pack.documents[:10])
+    if processing:
+        return
 
-        print(f"✅ Stickers Loaded: {len(STICKERS)}")
+    processing = True
 
-    except Exception as e:
-        print("Sticker Error:", e)
+    while MESSAGE_QUEUE:
+        event = MESSAGE_QUEUE.popleft()
+        try:
+            await handle_event(event)
+        except Exception as e:
+            print("QUEUE ERROR:", e)
+
+    processing = False
 
 # =========================
-# SEND STICKER (NEW FEATURE)
+# STICKERS
 # =========================
 
 async def send_random_sticker(event):
-    if not STICKERS:
-        return False
-
-    try:
-        sticker = random.choice(STICKERS)
-        await client.send_file(event.chat_id, sticker)
-        return True
-    except:
-        return False
+    if STICKERS:
+        try:
+            await client.send_file(event.chat_id, random.choice(STICKERS))
+        except:
+            pass
 
 # =========================
-# HUMAN DELAY
+# MAIN LOGIC
 # =========================
 
-async def human_delay():
-    await asyncio.sleep(random.uniform(0.5, 2.5))
-    
+async def handle_event(event):
+    global last_reply_time
+
+    msg = event.raw_text or ""
+    text = msg.lower()
+
+    now = time.time()
+    if now - last_reply_time < COOLDOWN:
+        return
+
+    uid = event.sender_id
+    user = get_user(uid)
+    rel = get_relation(uid)
+
+    remember(user, msg)
+    evolve(rel, msg)
+
+    context = "\n".join(user["msgs"][-5:])
+
+    reply = gemini(f"{context}\n{msg}")
+
+    if not reply:
+        return
+
+    typing_time = min(max(len(reply) / 18, 1.2), 3.0)
+
+    async with client.action(event.chat_id, "typing"):
+        await asyncio.sleep(typing_time)
+        await event.reply(reply)
+
+    last_reply_time = now
+
 # =========================
-# HANDLER
+# HANDLER (FIXED)
 # =========================
 
 @client.on(events.NewMessage)
 async def handler(event):
-    global last_reply_time
 
-    try:
-        # ignore outgoing + non-group
-        if event.out or not event.is_group:
-            return
+    if event.out or not event.is_group:
+        return
 
-        chat = await event.get_chat()
+    chat = await event.get_chat()
+    if not getattr(chat, "megagroup", False):
+        return
 
-        # safer group check (no silent skip)
-        if not getattr(chat, "megagroup", False):
-            return
+    msg = event.raw_text or ""
+    text = msg.lower()
 
-        msg = event.raw_text or ""
-        text = msg.lower().strip()
+    if len(msg) < 2:
+        return
 
-        if len(msg) < 2:
-            return
+    me = await client.get_me()
+    username = (me.username or "").lower()
 
-        # cooldown (stable check first)
-        now = time.time()
-        if now - last_reply_time < COOLDOWN:
-            return
+    is_mentioned = (
+        event.is_reply
+        or event.mentioned
+        or f"@{username}" in text
+        or username in text
+    )
 
-        sender = await event.get_sender()
-        if getattr(sender, "bot", False):
-            return
+    if not is_mentioned:
+        return
 
-        me = await client.get_me()
-        username = (me.username or "").lower()
+    MESSAGE_QUEUE.append(event)
+    asyncio.create_task(process_queue())
 
-        # ✅ BEST MENTION SYSTEM (100% stable)
-        is_mentioned = (
-            event.is_reply
-            or event.mentioned
-            or ("@" + username in text)
-            or (username in text)
-        )
-
-        # reply decision
-        if not is_mentioned:
-            return
-
-        uid = event.sender_id
-        user = get_user(uid)
-        rel = get_relation(uid)
-
-        remember(user, msg)
-        mood(user, msg)
-        evolve(rel, msg)
-
-        context = "\n".join(user["msgs"][-5:])
-
-        g = gemini(
-            f"""
-Recent conversation:
-{context}
-
-Current message:
-{msg}
-"""
-        )
-
-        if not g:
-            return
-
-        reply = g.replace("bhai", "yaar")
-
-        # stable typing (no lag spam)
-        typing_time = min(max(len(reply) / 18, 1.2), 3.0)
-
-        async with client.action(event.chat_id, "typing"):
-            await asyncio.sleep(typing_time)
-            await event.reply(reply)
-
-        # cooldown update ONLY after success
-        last_reply_time = now
-
-    except Exception as e:
-        print("ERROR:", e)
-        
 # =========================
 # START
 # =========================
 
 client.start()
 client.loop.create_task(revive_keys())
-client.loop.run_until_complete(load_stickers())
-
-print("🔥 LEVEL 100 BOT RUNNING (STABLE + STICKER MODE)")
+print("🔥 BOT RUNNING (STABLE + QUEUE FIX)")
 client.run_until_disconnected()
