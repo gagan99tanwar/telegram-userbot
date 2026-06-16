@@ -342,6 +342,9 @@ async def human_delay():
 # =========================
 # HANDLER
 # =========================
+print("\n========== NEW EVENT ==========")
+print("MESSAGE:", event.raw_text)
+print("CHAT ID:", event.chat_id)
 
 @client.on(events.NewMessage)
 async def handler(event):
