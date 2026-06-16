@@ -29,7 +29,7 @@ GEMINI_KEYS = [
 
 TARGET_GROUP = "serien_gays"
 
-COOLDOWN = 8
+COOLDOWN = 2
 last_reply_time = 0
 
 # =========================
@@ -356,6 +356,12 @@ async def handler(event):
             return
 
         msg = event.raw_text.strip()
+        text = (event.raw_text or "").lower()
+
+me = await client.get_me()
+username = me.username.lower() if me.username else ""
+
+is_mentioned = event.mentioned or ("@" in text) or (username in text)
         if len(msg) < 2:
             return
 
@@ -374,7 +380,9 @@ async def handler(event):
         me = await client.get_me()
 
         # Only respond if mentioned or replied
-        if not (event.mentioned or event.is_reply):
+        should_reply = is_mentioned or event.is_reply
+
+        if not should_reply:
             return
 
 
@@ -403,7 +411,7 @@ Current message:
 
         reply = g.replace("bhai", "yaar")
 
-        typing_time = min(len(reply) / 2.0, 4.0)
+        typing_time = min(len(reply) / 15, 4.0)
 
         async with client.action(event.chat_id, "typing"):
             await asyncio.sleep(typing_time)
