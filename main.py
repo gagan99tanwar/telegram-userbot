@@ -348,42 +348,44 @@ async def handler(event):
     global last_reply_time
 
     try:
-        if not event.is_group or event.out:
+        # ignore outgoing + non-group
+        if event.out or not event.is_group:
             return
 
         chat = await event.get_chat()
-        if getattr(chat, "username", None) != TARGET_GROUP:
+
+        # safer group check (no silent skip)
+        if not getattr(chat, "megagroup", False):
             return
 
-        msg = event.raw_text.strip()
-        text = (event.raw_text or "").lower()
-
-        me = await client.get_me()
-        username = me.username.lower() if me.username else ""
-
-        is_mentioned = event.mentioned or ("@" in text) or (username in text)
+        msg = event.raw_text or ""
+        text = msg.lower().strip()
 
         if len(msg) < 2:
             return
 
+        # cooldown (stable check first)
         now = time.time()
-
         if now - last_reply_time < COOLDOWN:
-            await asyncio.sleep(1)
             return
 
         sender = await event.get_sender()
-
-        # Ignore bots
         if getattr(sender, "bot", False):
             return
 
         me = await client.get_me()
+        username = (me.username or "").lower()
 
-        # Only respond if mentioned or replied
-        should_reply = is_mentioned or event.is_reply
+        # ✅ BEST MENTION SYSTEM (100% stable)
+        is_mentioned = (
+            event.is_reply
+            or event.mentioned
+            or ("@" + username in text)
+            or (username in text)
+        )
 
-        if not should_reply:
+        # reply decision
+        if not is_mentioned:
             return
 
         uid = event.sender_id
@@ -411,15 +413,14 @@ Current message:
 
         reply = g.replace("bhai", "yaar")
 
-        typing_time = min(len(reply) / 15, 4.0)
+        # stable typing (no lag spam)
+        typing_time = min(max(len(reply) / 18, 1.2), 3.0)
 
         async with client.action(event.chat_id, "typing"):
             await asyncio.sleep(typing_time)
             await event.reply(reply)
 
-        if random.randint(1, 100) < 20:
-            await send_random_sticker(event)
-
+        # cooldown update ONLY after success
         last_reply_time = now
 
     except Exception as e:
