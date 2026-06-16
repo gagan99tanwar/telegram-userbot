@@ -358,10 +358,11 @@ async def handler(event):
         msg = event.raw_text.strip()
         text = (event.raw_text or "").lower()
 
-me = await client.get_me()
-username = me.username.lower() if me.username else ""
+        me = await client.get_me()
+        username = me.username.lower() if me.username else ""
 
-is_mentioned = event.mentioned or ("@" in text) or (username in text)
+        is_mentioned = event.mentioned or ("@" in text) or (username in text)
+
         if len(msg) < 2:
             return
 
@@ -384,7 +385,6 @@ is_mentioned = event.mentioned or ("@" in text) or (username in text)
 
         if not should_reply:
             return
-
 
         uid = event.sender_id
         user = get_user(uid)
