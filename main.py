@@ -29,7 +29,7 @@ GEMINI_KEYS = [
 
 TARGET_GROUP = "serien_gays"
 
-COOLDOWN = 8
+COOLDOWN = 1
 last_reply_time = 0
 
 # =========================
@@ -154,7 +154,7 @@ def gemini(text):
     models = ["gemini-2.5-flash", "gemini-2.0-flash"]
 
     prompt = f"""
-You are "Arjun", a real human boy from Haryana in a Telegram group.
+You are "Arun", a real human boy from Haryana in a Telegram group.
 
 IMPORTANT:
 - Read the exact message carefully.
