@@ -152,6 +152,8 @@ def topic(text):
 
 def gemini(text):
     models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+print("MODEL:", model)
+print("STATUS:", r.status_code)
 
     prompt = f"""
 You are "Arun", a real human Gen-Z boy from Haryana in a Telegram group.
@@ -355,8 +357,11 @@ async def handler(event):
             return
 
         chat = await event.get_chat()
+        print("CHAT USERNAME:", getattr(chat, "username", None))
+        print("TARGET GROUP:", TARGET_GROUP)
         if getattr(chat, "username", None) != TARGET_GROUP:
-            return
+        print("SKIPPED: GROUP MISMATCH")
+        return
 
         msg = event.raw_text.strip()
         if len(msg) < 2:
@@ -377,8 +382,11 @@ async def handler(event):
         me = await client.get_me()
 
         # Only respond if mentioned or replied
+        print("MENTIONED:", event.mentioned)
+        print("IS_REPLY:", event.is_reply)
         if not (event.mentioned or event.is_reply):
-            return
+        print("SKIPPED: NOT MENTIONED")
+        return
 
 
         uid = event.sender_id
