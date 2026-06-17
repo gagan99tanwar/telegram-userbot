@@ -342,43 +342,80 @@ async def human_delay():
 # =========================
 # HANDLER
 # =========================
-
 @client.on(events.NewMessage)
 async def handler(event):
     global last_reply_time
 
     try:
+        print("\n========== NEW EVENT ==========")
+
         if not event.is_group or event.out:
             return
 
         chat = await event.get_chat()
+
+        print("CHAT USERNAME:", getattr(chat, "username", None))
+        print("TARGET GROUP:", TARGET_GROUP)
+
         if getattr(chat, "username", None) != TARGET_GROUP:
+            print("SKIPPED: GROUP MISMATCH")
             return
 
-        msg = event.raw_text.strip()
+        msg = (event.raw_text or "").strip()
+
+        print("MESSAGE:", msg)
+
         if len(msg) < 2:
+            print("SKIPPED: MESSAGE TOO SHORT")
             return
 
         now = time.time()
 
         if now - last_reply_time < COOLDOWN:
-            await asyncio.sleep(1)
+            print("SKIPPED: COOLDOWN ACTIVE")
             return
 
         sender = await event.get_sender()
 
-        # Ignore bots
         if getattr(sender, "bot", False):
+            print("SKIPPED: BOT MESSAGE")
             return
 
         me = await client.get_me()
 
-        # Only respond if mentioned or replied
-        if not (event.mentioned or event.is_reply):
+        print("MENTIONED:", event.mentioned)
+        print("IS_REPLY:", event.is_reply)
+
+        # =========================
+        # REPLY LOGIC
+        # =========================
+
+        should_reply = False
+
+        if event.mentioned:
+            print("TRIGGER: MENTION")
+            should_reply = True
+
+        elif event.is_reply:
+            replied = await event.get_reply_message()
+
+            if replied:
+                print("REPLY TO:", replied.sender_id)
+
+            if replied and replied.sender_id == me.id:
+                print("TRIGGER: REPLY TO MY MESSAGE")
+                should_reply = True
+
+        if not should_reply:
+            print("SKIPPED: NOT FOR ME")
             return
 
+        # =========================
+        # MEMORY
+        # =========================
 
         uid = event.sender_id
+
         user = get_user(uid)
         rel = get_relation(uid)
 
@@ -387,6 +424,8 @@ async def handler(event):
         evolve(rel, msg)
 
         context = "\n".join(user["msgs"][-5:])
+
+        print("GENERATING GEMINI REPLY...")
 
         g = gemini(
             f"""
@@ -399,9 +438,12 @@ Current message:
         )
 
         if not g:
+            print("GEMINI RETURNED NONE")
             return
 
         reply = g.replace("bhai", "yaar")
+
+        print("BOT REPLY:", reply)
 
         typing_time = min(len(reply) / 2.0, 4.0)
 
@@ -409,13 +451,24 @@ Current message:
             await asyncio.sleep(typing_time)
             await event.reply(reply)
 
-        if random.randint(1, 100) < 20:
-            await send_random_sticker(event)
+        print("REPLY SENT SUCCESSFULLY")
+
+        # =========================
+        # STICKER
+        # =========================
+
+        if random.randint(1, 100) <= 20:
+            sent = await send_random_sticker(event)
+
+            if sent:
+                print("STICKER SENT")
+            else:
+                print("STICKER FAILED")
 
         last_reply_time = now
 
     except Exception as e:
-        print("ERROR:", e)
+        print("HANDLER ERROR:", repr(e))
         
 # =========================
 # START
