@@ -352,14 +352,14 @@ async def handler(event):
         if not event.is_group or event.out:
             return
 
-        chat = await event.get_chat()
+        #chat = await event.get_chat()
 
-        print("CHAT USERNAME:", getattr(chat, "username", None))
-        print("TARGET GROUP:", TARGET_GROUP)
+        #print("CHAT USERNAME:", getattr(chat, "username", None))
+        #print("TARGET GROUP:", TARGET_GROUP)
 
-        if getattr(chat, "username", None) != TARGET_GROUP:
-            print("SKIPPED: GROUP MISMATCH")
-            return
+        #if getattr(chat, "username", None) != TARGET_GROUP:
+            #print("SKIPPED: GROUP MISMATCH")
+            #return
 
         msg = (event.raw_text or "").strip()
 
